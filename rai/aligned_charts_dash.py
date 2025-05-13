@@ -20,29 +20,140 @@ def create_aligned_charts(dataframes: Dict[str, pd.DataFrame]) -> go.Figure:
     # 获取数据框数量
     n_dataframes = len(dataframes)
     
+    # 获取RAI momentum和headline的最新值
+    latest_values = {}
+    latest_date = None
+    spx_latest = None
+    spx_date = None
+    
+    for name, df in dataframes.items():
+        if 'rai' in name.lower():
+            latest_date = df.index[-1].strftime('%Y-%m-%d')
+            for column in df.columns:
+                if 'momentum' in column.lower() or 'headline' in column.lower():
+                    latest_value = df[column].iloc[-1]
+                    latest_values[f"{name}_{column}"] = latest_value
+        elif 'spx' in name.lower():
+            spx_date = df.index[-1].strftime('%Y-%m-%d')
+            spx_latest = df.iloc[-1, 0]  # 获取第一列的最新值
+    
+    # 创建子图标题
+    subplot_titles = []
+    for name in dataframes.keys():
+        title = name
+        if 'rai' in name.lower():
+            title += f" (最新日期: {latest_date})"
+            for col in dataframes[name].columns:
+                if 'momentum' in col.lower() or 'headline' in col.lower():
+                    key = f"{name}_{col}"
+                    if key in latest_values:
+                        title += f" ({col}: {latest_values[key]:.2f})"
+        elif 'spx' in name.lower():
+            title += f" (最新日期: {spx_date}, 最新值: {spx_latest:.2f})"
+        subplot_titles.append(title)
+    
     # 创建子图
     fig = make_subplots(
         rows=n_dataframes,
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.05,
-        subplot_titles=list(dataframes.keys())
+        subplot_titles=subplot_titles
     )
+    
+    # 计算SPX的3个月收益率
+    spx_data = None
+    for name, df in dataframes.items():
+        if 'spx' in name.lower():
+            spx_data = df.iloc[:, 0]  # 获取第一列数据
+            break
+    
+    if spx_data is not None:
+        # 计算3个月收益率
+        spx_returns = spx_data.pct_change(periods=63)  # 约3个月（21个交易日/月）
+        # 找出下跌超过10%的时期
+        crash_periods = spx_returns[spx_returns < -0.1]
+        
+        # 为每个子图添加阴影
+        for i in range(1, n_dataframes + 1):
+            for date in crash_periods.index:
+                # 确保日期是datetime类型
+                start_date = pd.to_datetime(date)
+                end_date = start_date + pd.Timedelta(days=63)
+                
+                fig.add_vrect(
+                    x0=start_date,
+                    x1=end_date,
+                    fillcolor="rgba(255, 165, 0, 0.2)",  # 浅橙色，透明度0.2
+                    layer="below",
+                    line_width=0,
+                    row=i,
+                    col=1
+                )
     
     # 为每个数据框创建子图
     for i, (name, df) in enumerate(dataframes.items(), 1):
         # 为每个列添加轨迹
         for column in df.columns:
+            # 设置SPX线的颜色为绿色
+            line_color = 'green' if 'spx' in name.lower() else None
             fig.add_trace(
                 go.Scatter(
                     x=df.index,
                     y=df[column],
                     name=f"{name} - {column}",
-                    mode='lines'
+                    mode='lines',
+                    line=dict(color=line_color) if line_color else None
                 ),
                 row=i,
                 col=1
             )
+            
+            # 如果是RAI headline数据，添加均线
+            if 'rai' in name.lower() and 'headline' in column.lower():
+                # 添加0均线
+                fig.add_trace(
+                    go.Scatter(
+                        x=df.index,
+                        y=[0] * len(df),
+                        name='0均线',
+                        mode='lines',
+                        line=dict(dash='dot', color='gray', width=1),
+                        showlegend=False
+                    ),
+                    row=i,
+                    col=1
+                )
+                
+                # 添加±1均线
+                for value in [-1, 1]:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=df.index,
+                            y=[value] * len(df),
+                            name=f'{value}均线',
+                            mode='lines',
+                            line=dict(dash='dot', color='green', width=0.8),
+                            showlegend=False
+                        ),
+                        row=i,
+                        col=1
+                    )
+                
+                # 添加±2均线
+                for value in [-2, 2]:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=df.index,
+                            y=[value] * len(df),
+                            name=f'{value}均线',
+                            mode='lines',
+                            line=dict(dash='dot', color='blue', width=0.8),
+                            showlegend=False
+                        ),
+                        row=i,
+                        col=1
+                    )
     
     # 设置布局
     fig.update_layout(
