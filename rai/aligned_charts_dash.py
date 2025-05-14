@@ -27,13 +27,13 @@ def create_aligned_charts(dataframes: Dict[str, pd.DataFrame]) -> go.Figure:
     spx_date = None
     
     for name, df in dataframes.items():
-        if 'rai' in name.lower():
+        if 'RAI' in name.upper():
             latest_date = df.index[-1].strftime('%Y-%m-%d')
             for column in df.columns:
                 if 'momentum' in column.lower() or 'headline' in column.lower():
                     latest_value = df[column].iloc[-1]
                     latest_values[f"{name}_{column}"] = latest_value
-        elif 'spx' in name.lower():
+        elif 'SPX' in name.upper():
             spx_date = df.index[-1].strftime('%Y-%m-%d')
             spx_latest = df.iloc[-1, 0]  # 获取第一列的最新值
     
@@ -41,14 +41,14 @@ def create_aligned_charts(dataframes: Dict[str, pd.DataFrame]) -> go.Figure:
     subplot_titles = []
     for name in dataframes.keys():
         title = name
-        if 'rai' in name.lower():
+        if 'RAI' in name.upper():
             title += f" (最新日期: {latest_date})"
             for col in dataframes[name].columns:
                 if 'momentum' in col.lower() or 'headline' in col.lower():
                     key = f"{name}_{col}"
                     if key in latest_values:
                         title += f" ({col}: {latest_values[key]:.2f})"
-        elif 'spx' in name.lower():
+        elif 'SPX' in name.upper():
             title += f" (最新日期: {spx_date}, 最新值: {spx_latest:.2f})"
         subplot_titles.append(title)
     
@@ -64,7 +64,7 @@ def create_aligned_charts(dataframes: Dict[str, pd.DataFrame]) -> go.Figure:
     # 计算SPX的3个月收益率
     spx_data = None
     for name, df in dataframes.items():
-        if 'spx' in name.lower():
+        if 'SPX' in name.upper():
             spx_data = df.iloc[:, 0]  # 获取第一列数据
             break
     
@@ -96,7 +96,7 @@ def create_aligned_charts(dataframes: Dict[str, pd.DataFrame]) -> go.Figure:
         # 为每个列添加轨迹
         for column in df.columns:
             # 设置SPX线的颜色为绿色
-            line_color = 'green' if 'spx' in name.lower() else None
+            line_color = 'green' if 'SPX' in name.upper() else None
             fig.add_trace(
                 go.Scatter(
                     x=df.index,
@@ -110,7 +110,7 @@ def create_aligned_charts(dataframes: Dict[str, pd.DataFrame]) -> go.Figure:
             )
             
             # 如果是RAI headline数据，添加均线
-            if 'rai' in name.lower() and 'headline' in column.lower():
+            if 'RAI' in name.upper() and 'headline' in column.lower():
                 # 添加0均线
                 fig.add_trace(
                     go.Scatter(
@@ -157,7 +157,7 @@ def create_aligned_charts(dataframes: Dict[str, pd.DataFrame]) -> go.Figure:
     
     # 设置布局
     fig.update_layout(
-        title="对齐图表展示",
+        title="GS Risk Appetite Index vs 标普500指数对比",
         height=400 * n_dataframes,
         showlegend=True,
         margin=dict(l=40, r=40, t=40, b=40),
@@ -169,7 +169,7 @@ def create_aligned_charts(dataframes: Dict[str, pd.DataFrame]) -> go.Figure:
     
     # 为每个子图设置y轴标题和类型
     for i, name in enumerate(dataframes.keys(), 1):
-        if 'spx' in name.lower():
+        if 'SPX' in name.upper():
             fig.update_yaxes(
                 title_text="Value (Log Scale)",
                 type="log",
@@ -232,7 +232,7 @@ app = dash.Dash(__name__)
 
 # 定义应用布局
 app.layout = html.Div([
-    html.H1('对齐图表展示'),
+    html.H1('GS Risk Appetite Index vs 标普500指数对比'),
     dcc.Graph(
         id='aligned-charts',
         config={'scrollZoom': True}
